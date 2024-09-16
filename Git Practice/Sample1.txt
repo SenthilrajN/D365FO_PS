@@ -1,0 +1,4 @@
+Hi 
+this is a simple msg file for git practice. 
+adding a aditional message 
+update a file
