@@ -1,0 +1,31 @@
+::: mermaid
+sequenceDiagram
+PROD ->>Business Analysis: User report some Application Issue
+PROD ->>Business Analysis: Ticketing Tool or Services Now
+PROD ->> Business Analysis: Collect the necessary repro steps
+PROD ->> Business Analysis: Create a repro steps document
+Business Analysis->> Main/UAT: Try re-creating the scenario in UAT instance
+Business Analysis->> Main/UAT: Classify the bug Type (Technical / Functional / Data)
+Business Analysis->> Main/UAT: [Technical] / [Functional] / [Data] / [Microsoft])
+Main/UAT->> DevOps: Create the Bug Work Item
+Main/UAT->> DevOps: Attach the require document
+Main/UAT->> DevOps: Assignee a relevant resource
+Main/UAT->> DevOps: If Technical?
+DevOps->> Dev: Review the Requirement
+DevOps->> Dev: Find the cause(RCA)
+DevOps->> Dev: Resolve the Issue
+Dev->> Business Analysis: Review the Solution with Business Analysis
+Dev->> Test: Move the solution 
+Dev->> Test: Validate the Fix
+DevOps->> Main/UAT: Create a Deployable Package
+DevOps->> Main/UAT: Deliver the code to Customer for Unit Testing
+Loop Validate the Fix
+Main/UAT->> Main/UAT: Approve or Reject by Customer 
+End
+Test->> Main/UAT: On Success
+Main/UAT -->> PROD: Schedule the code Delivery
+    Main/UAT-->>PROD: Plan for PROD Release
+    Main/UAT-->>PROD: Release Date?
+    Main/UAT-->>PROD: Inform the Key business users/Audience
+    Main/UAT-->>PROD: Schedule the code Promotion/Delivery 
+:::
