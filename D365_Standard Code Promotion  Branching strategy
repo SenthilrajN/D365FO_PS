@@ -1,0 +1,28 @@
+::: mermaid
+sequenceDiagram
+    User->>Business Analysis: Collect the Business Scenario 
+    User->>Business Analysis: Prepare the User Story for the Requirement
+    Business Analysis->>Dev: DevOps: Create a Work Item (CR/User Story).
+    Business Analysis->>Dev: FDD: Prepare the FDD for the User Story.
+    Loop FDD Scenarios
+     Business Analysis->>Business Analysis: FDD-001...FDD-00N.
+    end
+    Business Analysis->>Dev: FDD: Review & Approve the FDD.
+    Dev->> Test: TDD: Prepare the TDD by Developer
+    loop FDD Scenarios
+     Dev->>Dev: TDD-001...TDD-00N.
+    end
+    Dev->> Business Analysis: TDD: Review the TDD and Approve
+    Business Analysis ->> Dev: TDD: Start the Development
+    Dev->> Business Analysis: Review the solution
+    Business Analysis->>Dev: If approved move the Solution
+    Dev->>Test: Move the Solution
+    Test->>Main/UAT: Create a Deployable package
+    Main/UAT->>PROD: Deploy the CR to UAT 
+    Main/UAT->>PROD: Plan for PROD Release
+    Main/UAT->>PROD: Release Date?
+    Main/UAT->>PROD: Inform the Key business users/Audience
+    Main/UAT->>PROD: Schedule the code Promotion/Delivery
+:::
+
+
