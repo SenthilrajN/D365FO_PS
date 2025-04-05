@@ -1,25 +1,27 @@
 <#
 
-    Organization : CGI
-    Created date : 10-Apr-2021
+    Organization : CG
+    Created date : 17-Feb-2021
     Created By   : Senthilraj
     Product      : Dynamics 365 Finance and Operation
     Purpose: To handle the import export operation from bacpac to Developer SQL
 
 #>
 
+$company = 'CG'
 
 function Main()
 {
     Write-Host "1. Import bacpac"
-    Write-Host "2. Export bacpac"
+    Write-Host "2. Export bacpac - Beta"
     Write-Host "3. Stop D365 Dependent server"
     Write-Host "4. Start D365 Dependent server"
     Write-Host "5. Alter the Database"
     Write-Host "6. Synchronize the DB"
     Write-Host "7. Set Maintenance Mode"
-    Write-Host "8. Generate HasValue for bacpac Modelfile"
+    Write-Host "8. Generate HasValue for bacpac Modelfile (Depricated)"
     Write-Host "9. Drop Retail chennal DB"
+    Write-Host "10. Generate CAR Report"
 
     $x= Read-Host "Enter your option"
     switch ($x)
@@ -97,6 +99,16 @@ function Main()
             }
             
         }
+        '10'
+        {
+            Write-Host "Customization Analysis Report (CAR)"
+            $x = Read-Host "How many custom model e.g. 3/4"
+            for ($i = 1; $i -le $x; $i++)
+            { 
+                $ModelName = Read-Host "Enter the Model Name"
+                CARReport -ModelName "$ModelName"
+            }
+        }
         Default {}
     }
 
@@ -122,14 +134,14 @@ function Importbacpac()
 {
     $date = Get-Date -Format MMddyyyy
     get-SQLPacage
-    $mypath = "C:\CGI\SQLPackage\"
+    $mypath = "C:\$company\SQLPackage\"
     Set-Location -path $mypath
     $file = Read-Host "Enter the backpac file path"
     $file = $file.Replace('"','')
     $SQLpwd = Read-Host "Enter the axdbadmin pwd"
     $DatabaseName= "AXDB_$date"
     $TargetserverName = 'localhost'
-    #.\SqlPackage.exe /TargetTrustServerCertificate:True /a:Import /sf:$file /tsn:$TargetserverName /tdn:$DatabaseName /tu:axdbadmin /tp:$SQLpwd /p:CommandTimeout=15000 /mfp:$modelFile > "C:\CGI\log\dbrestore_log$date.txt"
+    #.\SqlPackage.exe /TargetTrustServerCertificate:True /a:Import /sf:$file /tsn:$TargetserverName /tdn:$DatabaseName /tu:axdbadmin /tp:$SQLpwd /p:CommandTimeout=15000 /mfp:$modelFile > "C:\$company\log\dbrestore_log$date.txt"
     .\SqlPackage.exe /TargetTrustServerCertificate:True /a:Import /sf:$file /tsn:$TargetserverName /tdn:$DatabaseName /tu:axdbadmin /tp:$SQLpwd /p:CommandTimeout=15000 
     $y = Read-Host "Can we continuee (Press C/c)"
     if($y -eq 'c')
@@ -144,7 +156,7 @@ function Exportbacpac()
 {
     $date = Get-Date -Format MMddyyyy
     get-SQLPacage
-    $mypath = "C:\CGI\SQLPackage\"
+    $mypath = "C:\$company\SQLPackage\"
     Set-Location -path $mypath
     $SourceServerName = Read-Host "Enter the Server Name"
     $DatabaseName = Read-Host "Enter the Database Name"
@@ -156,20 +168,20 @@ function Get-SQLPacage()
 {
     #$url= "https://go.microsoft.com/fwlink/?linkid=2157302" #if the SQL package location changes
     $url="https://aka.ms/sqlpackage-windows" 
-    $SQLFilepath = "C:\CGI\SQLPackage\"
+    $SQLFilepath = "C:\$company\SQLPackage\"
     $res = Test-Path -Path $SQLFilepath
     if($res.ToString() -eq 'false')
     {
         mkdir -Path $SQLFilepath
-        mkdir -Path 'C:\CGI\Log'
+        mkdir -Path 'C:\$company\Log'
     }
-    $checkSQLPackage = Test-Path -Path "C:\CGI\SQLPackage\sqlpackage.exe"
+    $checkSQLPackage = Test-Path -Path "C:\$company\SQLPackage\sqlpackage.exe"
     if($checkSQLPackage.ToString() -eq 'false')
     {
-    $downloadPath = "C:\CGI\SQLPackage\SQLpackage.zip"# +  $(split-path -Path $url -Leaf)
+    $downloadPath = "C:\$company\SQLPackage\SQLpackage.zip"# +  $(split-path -Path $url -Leaf)
     Invoke-WebRequest -Uri $Url -OutFile $downloadPath
     $ExtractShell = New-Object -ComObject Shell.Application
-    $ExtractPath =  "C:\CGI\SQLPackage\"
+    $ExtractPath =  "C:\$company\SQLPackage\"
     $ExtractFiles = $ExtractShell.Namespace($downloadPath).Items()
     $ExtractShell.NameSpace($ExtractPath).CopyHere($ExtractFiles) 
     #Start-Process $ExtractPath
@@ -189,9 +201,16 @@ function Alter-D365($oldDB,$newDB)
 }
 function DBSync($pwd)
 {
-
-    Set-Location K:\AosService\PackagesLocalDirectory\bin
-    .\Microsoft.Dynamics.AX.Deployment.Setup.exe -bindir “K:\AosService\PackagesLocalDirectory” -metadatadir K:\AosService\PackagesLocalDirectory -sqluser axdbadmin -sqlserver localhost -sqldatabase AxDB -setupmode sync -syncmode fullall -sqlpwd $pwd
+    if (Test-Path -Path K:\AosService\PackagesLocalDirectory\bin)
+    {
+         Set-Location K:\AosService\PackagesLocalDirectory\bin
+         .\Microsoft.Dynamics.AX.Deployment.Setup.exe -bindir “K:\AosService\PackagesLocalDirectory” -metadatadir K:\AosService\PackagesLocalDirectory -sqluser axdbadmin -sqlserver localhost -sqldatabase AxDB -setupmode sync -syncmode fullall -sqlpwd $pwd
+    }
+    if (Test-Path -Path J:\AosService\PackagesLocalDirectory\bin)
+    {
+        Set-Location J:\AosService\PackagesLocalDirectory\bin
+         .\Microsoft.Dynamics.AX.Deployment.Setup.exe -bindir “J:\AosService\PackagesLocalDirectory” -metadatadir J:\AosService\PackagesLocalDirectory -sqluser axdbadmin -sqlserver localhost -sqldatabase AxDB -setupmode sync -syncmode fullall -sqlpwd $pwd
+    }
 }
 
 function D365MaintainanceMode()
@@ -215,6 +234,29 @@ function D365MaintainanceMode()
         }
             
     
+    }
+}
+
+function CARReport($ModelName)
+{
+    if(Test-Path "J:\AosService")
+    {
+        $date = Get-Date -Format MMddyyyy
+        $pcK_LocalDir = "J:\AosService\PackagesLocalDirectory\bin"
+        Set-Location -Path $pcK_LocalDir
+        #$ModelName = "IDECPOModel" 
+        $XL_FileName = $ModelName+$date 
+        $cmd = ".\xppbp.exe -metadata=J:\AosService\PackagesLocalDirectory -all -model=""$ModelName"" -xmlLog=C:\$company\BPCheckLogcd.xml -car=C:\$company\CAR_$XL_FileName.xlsx -Module=""$ModelName"" -packagesroot=J:\AosService\PackagesLocalDirectory"
+        Write-Host $cmd
+        Invoke-Expression $cmd
+    }
+    
+    if(Test-Path "K:\AosService")
+    {
+        $pcK_LocalDir = "K:\AosService\PackagesLocalDirectory\bin"
+        Set-Location -Path $pcK_LocalDir
+        $cmd = ".\xppbp.exe -metadata=K:\AosService\PackagesLocalDirectory -all -model=""$ModelName"" -xmlLog=C:\$company\BPCheckLogcd.xml -car=C:\$company\CAR_$XL_FileName.xlsx -Module= ""$ModelName"" -packagesroot=K:\AosService\PackagesLocalDirectory"
+        Invoke-Expression $cmd
     }
 }
 main 
