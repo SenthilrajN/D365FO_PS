@@ -8,7 +8,8 @@
 
 #>
 
-$company = 'CG'
+#Organization Folder
+$company = "CG"
 
 function Main()
 {
@@ -19,7 +20,7 @@ function Main()
     Write-Host "5. Alter the Database"
     Write-Host "6. Synchronize the DB"
     Write-Host "7. Set Maintenance Mode"
-    Write-Host "8. Generate HasValue for bacpac Modelfile (Depricated)"
+    Write-Host "8. Install D365 Nuget"
     Write-Host "9. Drop Retail chennal DB"
     Write-Host "10. Generate CAR Report"
 
@@ -72,6 +73,9 @@ function Main()
         }
         '8'
         {
+            install_NugetPckg
+        }
+        <#{
             $modelXmlPath = Read-Host "model.xml file path"
             $hasher = [System.Security.Cryptography.HashAlgorithm]::Create("System.Security.Cryptography.SHA256CryptoServiceProvider")
             $fileStream = new-object System.IO.FileStream ` -ArgumentList @($modelXmlPath, [System.IO.FileMode]::Open)
@@ -80,7 +84,7 @@ function Main()
             Foreach ($b in $hash) { $hashString += $b.ToString("X2") }
             $fileStream.Close()
             $hashString 
-        }
+        }#>
         '9'
         {
             $files = Get-ChildItem -Path K:\DeployablePackages\DropAllRetailChannelDbObjects.sql -Recurse
@@ -142,7 +146,7 @@ function Importbacpac()
     $DatabaseName= "AXDB_$date"
     $TargetserverName = 'localhost'
     #.\SqlPackage.exe /TargetTrustServerCertificate:True /a:Import /sf:$file /tsn:$TargetserverName /tdn:$DatabaseName /tu:axdbadmin /tp:$SQLpwd /p:CommandTimeout=15000 /mfp:$modelFile > "C:\$company\log\dbrestore_log$date.txt"
-    .\SqlPackage.exe /TargetTrustServerCertificate:True /a:Import /sf:$file /tsn:$TargetserverName /tdn:$DatabaseName /tu:axdbadmin /tp:$SQLpwd /p:CommandTimeout=15000 
+    .\SqlPackage.exe /TargetTrustServerCertificate:True /a:Import /sf:$file /tsn:$TargetserverName /tdn:$DatabaseName /tu:axdbadmin /tp:$SQLpwd /p:CommandTimeout=15000  
     $y = Read-Host "Can we continuee (Press C/c)"
     if($y -eq 'c')
     {
@@ -174,6 +178,7 @@ function Get-SQLPacage()
     {
         mkdir -Path $SQLFilepath
         mkdir -Path 'C:\$company\Log'
+        mkdir -Path 'C:\$company\NuGet'
     }
     $checkSQLPackage = Test-Path -Path "C:\$company\SQLPackage\sqlpackage.exe"
     if($checkSQLPackage.ToString() -eq 'false')
@@ -258,5 +263,23 @@ function CARReport($ModelName)
         $cmd = ".\xppbp.exe -metadata=K:\AosService\PackagesLocalDirectory -all -model=""$ModelName"" -xmlLog=C:\$company\BPCheckLogcd.xml -car=C:\$company\CAR_$XL_FileName.xlsx -Module= ""$ModelName"" -packagesroot=K:\AosService\PackagesLocalDirectory"
         Invoke-Expression $cmd
     }
+}
+
+#D365 install the NuGet pacakge
+function install_NugetPckg()
+{
+    Invoke-WebRequest -Uri "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe" -OutFile "c:\$company\Nuget\Nuget2.exe"
+    iex "& { $(irm https://aka.ms/install-artifacts-credprovider.ps1) } -AddNetfx"
+
+    #nuget.exe push -Source "IDED365Build-10.0.40" -ApiKey az <packagePath>
+    Set-Location "C:\$company\NuGet"
+    $NugetPckg = Get-ChildItem -Path C:\$company\NuGet -Filter "*.nupkg" -Recurse
+    foreach ($item in $NugetPckg)
+    {
+        Write-Host "INstalling the Nuget pacakge $item.FullName" -ForegroundColor DarkGreen
+        .\nuget.exe push -Source "IDED365Build-10.0.40" -ApiKey az $item.FullName
+    }
+
+
 }
 main 
