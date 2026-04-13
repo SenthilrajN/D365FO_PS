@@ -8,8 +8,6 @@
 
 #>
 
-#Organization Folder
-$company = "CG"
 
 function Main()
 {
@@ -20,9 +18,10 @@ function Main()
     Write-Host "5. Alter the Database"
     Write-Host "6. Synchronize the DB"
     Write-Host "7. Set Maintenance Mode"
-    Write-Host "8. Install D365 Nuget"
+    Write-Host "8. Generate HasValue for bacpac Modelfile (Depricated)"
     Write-Host "9. Drop Retail chennal DB"
     Write-Host "10. Generate CAR Report"
+    Write-Host "11. Import User in Cloud Hosted Environment"
 
     $x= Read-Host "Enter your option"
     switch ($x)
@@ -73,9 +72,6 @@ function Main()
         }
         '8'
         {
-            install_NugetPckg
-        }
-        <#{
             $modelXmlPath = Read-Host "model.xml file path"
             $hasher = [System.Security.Cryptography.HashAlgorithm]::Create("System.Security.Cryptography.SHA256CryptoServiceProvider")
             $fileStream = new-object System.IO.FileStream ` -ArgumentList @($modelXmlPath, [System.IO.FileMode]::Open)
@@ -84,7 +80,7 @@ function Main()
             Foreach ($b in $hash) { $hashString += $b.ToString("X2") }
             $fileStream.Close()
             $hashString 
-        }#>
+        }
         '9'
         {
             $files = Get-ChildItem -Path K:\DeployablePackages\DropAllRetailChannelDbObjects.sql -Recurse
@@ -113,6 +109,10 @@ function Main()
                 CARReport -ModelName "$ModelName"
             }
         }
+        '11'
+        {
+            AddUsersToCHE
+        }
         Default {}
     }
 
@@ -138,15 +138,15 @@ function Importbacpac()
 {
     $date = Get-Date -Format MMddyyyy
     get-SQLPacage
-    $mypath = "C:\$company\SQLPackage\"
+    $mypath = "C:\CG\SQLPackage\"
     Set-Location -path $mypath
     $file = Read-Host "Enter the backpac file path"
     $file = $file.Replace('"','')
     $SQLpwd = Read-Host "Enter the axdbadmin pwd"
     $DatabaseName= "AXDB_$date"
     $TargetserverName = 'localhost'
-    #.\SqlPackage.exe /TargetTrustServerCertificate:True /a:Import /sf:$file /tsn:$TargetserverName /tdn:$DatabaseName /tu:axdbadmin /tp:$SQLpwd /p:CommandTimeout=15000 /mfp:$modelFile > "C:\$company\log\dbrestore_log$date.txt"
-    .\SqlPackage.exe /TargetTrustServerCertificate:True /a:Import /sf:$file /tsn:$TargetserverName /tdn:$DatabaseName /tu:axdbadmin /tp:$SQLpwd /p:CommandTimeout=15000  
+    #.\SqlPackage.exe /TargetTrustServerCertificate:True /a:Import /sf:$file /tsn:$TargetserverName /tdn:$DatabaseName /tu:axdbadmin /tp:$SQLpwd /p:CommandTimeout=15000 /mfp:$modelFile > "C:\CG\log\dbrestore_log$date.txt"
+    .\SqlPackage.exe /TargetTrustServerCertificate:True /a:Import /sf:$file /tsn:$TargetserverName /tdn:$DatabaseName /tu:axdbadmin /tp:$SQLpwd /p:CommandTimeout=15000 
     $y = Read-Host "Can we continuee (Press C/c)"
     if($y -eq 'c')
     {
@@ -160,7 +160,7 @@ function Exportbacpac()
 {
     $date = Get-Date -Format MMddyyyy
     get-SQLPacage
-    $mypath = "C:\$company\SQLPackage\"
+    $mypath = "C:\CG\SQLPackage\"
     Set-Location -path $mypath
     $SourceServerName = Read-Host "Enter the Server Name"
     $DatabaseName = Read-Host "Enter the Database Name"
@@ -172,21 +172,20 @@ function Get-SQLPacage()
 {
     #$url= "https://go.microsoft.com/fwlink/?linkid=2157302" #if the SQL package location changes
     $url="https://aka.ms/sqlpackage-windows" 
-    $SQLFilepath = "C:\$company\SQLPackage\"
+    $SQLFilepath = "C:\CG\SQLPackage\"
     $res = Test-Path -Path $SQLFilepath
     if($res.ToString() -eq 'false')
     {
         mkdir -Path $SQLFilepath
-        mkdir -Path 'C:\$company\Log'
-        mkdir -Path 'C:\$company\NuGet'
+        mkdir -Path 'C:\CG\Log'
     }
-    $checkSQLPackage = Test-Path -Path "C:\$company\SQLPackage\sqlpackage.exe"
+    $checkSQLPackage = Test-Path -Path "C:\CG\SQLPackage\sqlpackage.exe"
     if($checkSQLPackage.ToString() -eq 'false')
     {
-    $downloadPath = "C:\$company\SQLPackage\SQLpackage.zip"# +  $(split-path -Path $url -Leaf)
+    $downloadPath = "C:\CG\SQLPackage\SQLpackage.zip"# +  $(split-path -Path $url -Leaf)
     Invoke-WebRequest -Uri $Url -OutFile $downloadPath
     $ExtractShell = New-Object -ComObject Shell.Application
-    $ExtractPath =  "C:\$company\SQLPackage\"
+    $ExtractPath =  "C:\CG\SQLPackage\"
     $ExtractFiles = $ExtractShell.Namespace($downloadPath).Items()
     $ExtractShell.NameSpace($ExtractPath).CopyHere($ExtractFiles) 
     #Start-Process $ExtractPath
@@ -251,7 +250,7 @@ function CARReport($ModelName)
         Set-Location -Path $pcK_LocalDir
         #$ModelName = "IDECPOModel" 
         $XL_FileName = $ModelName+$date 
-        $cmd = ".\xppbp.exe -metadata=J:\AosService\PackagesLocalDirectory -all -model=""$ModelName"" -xmlLog=C:\$company\BPCheckLogcd.xml -car=C:\$company\CAR_$XL_FileName.xlsx -Module=""$ModelName"" -packagesroot=J:\AosService\PackagesLocalDirectory"
+        $cmd = ".\xppbp.exe -metadata=J:\AosService\PackagesLocalDirectory -all -model=""$ModelName"" -xmlLog=C:\cg\BPCheckLogcd.xml -car=C:\CG\CAR_$XL_FileName.xlsx -Module=""$ModelName"" -packagesroot=J:\AosService\PackagesLocalDirectory"
         Write-Host $cmd
         Invoke-Expression $cmd
     }
@@ -260,25 +259,26 @@ function CARReport($ModelName)
     {
         $pcK_LocalDir = "K:\AosService\PackagesLocalDirectory\bin"
         Set-Location -Path $pcK_LocalDir
-        $cmd = ".\xppbp.exe -metadata=K:\AosService\PackagesLocalDirectory -all -model=""$ModelName"" -xmlLog=C:\$company\BPCheckLogcd.xml -car=C:\$company\CAR_$XL_FileName.xlsx -Module= ""$ModelName"" -packagesroot=K:\AosService\PackagesLocalDirectory"
+        $cmd = ".\xppbp.exe -metadata=K:\AosService\PackagesLocalDirectory -all -model=""$ModelName"" -xmlLog=C:\cg\BPCheckLogcd.xml -car=C:\CG\CAR_$XL_FileName.xlsx -Module= ""$ModelName"" -packagesroot=K:\AosService\PackagesLocalDirectory"
         Invoke-Expression $cmd
     }
 }
 
-#D365 install the NuGet pacakge
-function install_NugetPckg()
+function AddUsersToCHE()
 {
-    Invoke-WebRequest -Uri "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe" -OutFile "c:\$company\Nuget\Nuget2.exe"
-    iex "& { $(irm https://aka.ms/install-artifacts-credprovider.ps1) } -AddNetfx"
-
-    #nuget.exe push -Source "IDED365Build-10.0.40" -ApiKey az <packagePath>
-    Set-Location "C:\$company\NuGet"
-    $NugetPckg = Get-ChildItem -Path C:\$company\NuGet -Filter "*.nupkg" -Recurse
-    foreach ($item in $NugetPckg)
+    Write-Host "Response [Yes] & A [Yes to All]"
+    Import-Module -Name d365fo.tools
+    $corpID = Read-Host "Enter the CorpID [e,g., senthRaj] without domain" 
+    if($corpID.Contains("corp.idemia.com"))
     {
-        Write-Host "INstalling the Nuget pacakge $item.FullName" -ForegroundColor DarkGreen
-        .\nuget.exe push -Source "IDED365Build-10.0.40" -ApiKey az $item.FullName
+        Write-Host "Please give the corpid only"
     }
+    else
+    {
+        $UserdID = "$corpID@corp.idemia.com"
+        import-d365aadUser -users $UserdID
+    }
+
 
 
 }
