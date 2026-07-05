@@ -1,14 +1,12 @@
 <#
-
     Organization : CG
     Created date : 17-Feb-2021
     Created By   : Senthilraj
     Product      : Dynamics 365 Finance and Operation
     Purpose: To handle the import export operation from bacpac to Developer SQL
-
 #>
 
-
+$company = 'CG'
 function Main()
 {
     Write-Host "1. Import bacpac"
@@ -22,11 +20,12 @@ function Main()
     Write-Host "9. Drop Retail chennal DB"
     Write-Host "10. Generate CAR Report"
     Write-Host "11. Import User in Cloud Hosted Environment"
-
+    Write-Host "12. Dev-Box VM Self Signed Certificate"
+    Write-Host "13. Install NuGet"
     $x= Read-Host "Enter your option"
     switch ($x)
     {
-        '1' 
+        '1'
         {
             Importbacpac
         }
@@ -34,25 +33,24 @@ function Main()
         {
             Exportbacpac
         }
-        '3' 
+        '3'
         {
             StopD365RelevantService
             get-D365Servicestatus
         }
-        '4' 
+        '4'
         {
             StartD365RelevantService
             get-D365Servicestatus
         }
         '5'
         {
-            #Alter Database commend 
+            #Alter Database commend
             $Res = Read-Host "Only in Issue we execute this steps Hit Y"
             if($Res -eq 'y' -or $Res -eq 'Y')
             {
                     $date = Get-Date -Format MMddyyyy
                     $DatabaseName= "AXDB_$date"
-
                     Alter-D365 -oldDB "AxDB" -newDB "AxDB_Org_$date"
                     Alter-D365 -oldDB $DatabaseName -newDB "AxDB"
             }
@@ -63,7 +61,7 @@ function Main()
             if($password -ne "")
             {
                 DBSync -pwd $password
-                
+               
             }
         }
         '7'
@@ -79,7 +77,7 @@ function Main()
             $hashString = ""
             Foreach ($b in $hash) { $hashString += $b.ToString("X2") }
             $fileStream.Close()
-            $hashString 
+            $hashString
         }
         '9'
         {
@@ -92,19 +90,19 @@ function Main()
                     Write-Host $file.FullName
                     Write-Host "The Job will complete in 20 min"
                     Write-Host "Please Waite!!!!"
-                    Invoke-Sqlcmd -ServerInstance localhost -Database AxDB -InputFile $file.FullName 
-                    Write-Host "Drop Channel DB is Completed" -ForegroundColor Green                   
+                    Invoke-Sqlcmd -ServerInstance localhost -Database AxDB -InputFile $file.FullName
+                    Write-Host "Drop Channel DB is Completed" -ForegroundColor Green                  
                 }
    
             }
-            
+           
         }
         '10'
         {
             Write-Host "Customization Analysis Report (CAR)"
             $x = Read-Host "How many custom model e.g. 3/4"
             for ($i = 1; $i -le $x; $i++)
-            { 
+            {
                 $ModelName = Read-Host "Enter the Model Name"
                 CARReport -ModelName "$ModelName"
             }
@@ -113,10 +111,42 @@ function Main()
         {
             AddUsersToCHE
         }
+        '12'
+        {
+            self-signCertificate
+        }
+        '13'
+        {
+            install_NugetPckg
+        }
         Default {}
     }
-
 }
+
+
+#D365 install the NuGet pacakge
+function install_NugetPckg()
+{
+
+    $res = Test-Path -Path "c:\$company\Nuget\nuget.exe"
+    if($res.ToString() -eq $false)
+    {
+        Invoke-WebRequest -Uri "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe" -OutFile "c:\$company\Nuget\nuget.exe"
+    }
+    iex "& { $(irm https://aka.ms/install-artifacts-credprovider.ps1) } -AddNetfx"
+
+    #nuget.exe push -Source "IDED365Build-10.0.40" -ApiKey az <packagePath>
+    Set-Location "C:\$company\NuGet"
+    $NugetPckg = Get-ChildItem -Path C:\$company\NuGet -Filter "*.nupkg" -Recurse
+    foreach ($item in $NugetPckg)
+    {
+        $nu = $item.FullName
+        Write-Host "INstalling the Nuget pacakge $nu" -ForegroundColor DarkGreen
+        .\nuget.exe push -Source "IDE_D365_Build_10.0.44" -ApiKey az $nu
+    }
+}
+
+
 
 function StopD365RelevantService()
 {
@@ -125,7 +155,6 @@ function StopD365RelevantService()
     Stop-Service -Name W3SVC -ErrorAction SilentlyContinue
     Stop-Service -Name MR2012ProcessService -ErrorAction SilentlyContinue
 }
-
 function StartD365RelevantService()
 {
     Start-Service -Name Microsoft.Dynamics.AX.Framework.Tools.DMF.SSISHelperService.exe -ErrorAction SilentlyContinue
@@ -133,7 +162,6 @@ function StartD365RelevantService()
     Start-Service -Name W3SVC -ErrorAction SilentlyContinue
     Start-Service -Name MR2012ProcessService -ErrorAction SilentlyContinue
 }
-
 function Importbacpac()
 {
     $date = Get-Date -Format MMddyyyy
@@ -146,7 +174,7 @@ function Importbacpac()
     $DatabaseName= "AXDB_$date"
     $TargetserverName = 'localhost'
     #.\SqlPackage.exe /TargetTrustServerCertificate:True /a:Import /sf:$file /tsn:$TargetserverName /tdn:$DatabaseName /tu:axdbadmin /tp:$SQLpwd /p:CommandTimeout=15000 /mfp:$modelFile > "C:\CG\log\dbrestore_log$date.txt"
-    .\SqlPackage.exe /TargetTrustServerCertificate:True /a:Import /sf:$file /tsn:$TargetserverName /tdn:$DatabaseName /tu:axdbadmin /tp:$SQLpwd /p:CommandTimeout=15000 
+    .\SqlPackage.exe /TargetTrustServerCertificate:True /a:Import /sf:$file /tsn:$TargetserverName /tdn:$DatabaseName /tu:axdbadmin /tp:$SQLpwd /p:CommandTimeout=15000
     $y = Read-Host "Can we continuee (Press C/c)"
     if($y -eq 'c')
     {
@@ -155,7 +183,6 @@ function Importbacpac()
         Alter-D365 -oldDB $DatabaseName -newDB "AxDB"
     }
 }
-
 function Exportbacpac()
 {
     $date = Get-Date -Format MMddyyyy
@@ -167,11 +194,10 @@ function Exportbacpac()
     $TargetFilePath = Read-Host "Enter the SaveLocation Path[e.g c:\tmx\AXDB_YYYYmmDD.bacpac]"
     .\SqlPackage.exe /a:Export /ssn:$SourceServerName /sdn:$DatabaseName /tf:$TargetFilePath /p:CommandTimeout=1200 /p:VerifyFullTextDocumentTypesSupported=false
 }
-
 function Get-SQLPacage()
 {
     #$url= "https://go.microsoft.com/fwlink/?linkid=2157302" #if the SQL package location changes
-    $url="https://aka.ms/sqlpackage-windows" 
+    $url="https://aka.ms/sqlpackage-windows"
     $SQLFilepath = "C:\CG\SQLPackage\"
     $res = Test-Path -Path $SQLFilepath
     if($res.ToString() -eq 'false')
@@ -187,7 +213,7 @@ function Get-SQLPacage()
     $ExtractShell = New-Object -ComObject Shell.Application
     $ExtractPath =  "C:\CG\SQLPackage\"
     $ExtractFiles = $ExtractShell.Namespace($downloadPath).Items()
-    $ExtractShell.NameSpace($ExtractPath).CopyHere($ExtractFiles) 
+    $ExtractShell.NameSpace($ExtractPath).CopyHere($ExtractFiles)
     #Start-Process $ExtractPath
     }
     return $SQLFilepath
@@ -201,7 +227,6 @@ function Alter-D365($oldDB,$newDB)
     Invoke-Sqlcmd -ServerInstance localhost -Database master -Query "Alter database $oldDB SET SINGLE_USER WITH ROLLBACK IMMEDIATE"
     Invoke-Sqlcmd -ServerInstance localhost -Database master -Query "Alter database $oldDB modify Name=$newDB"
     Invoke-Sqlcmd -ServerInstance localhost -Database master -Query "Alter database $newDB SET MULTI_USER WITH ROLLBACK IMMEDIATE"
-
 }
 function DBSync($pwd)
 {
@@ -216,7 +241,6 @@ function DBSync($pwd)
          .\Microsoft.Dynamics.AX.Deployment.Setup.exe -bindir “J:\AosService\PackagesLocalDirectory” -metadatadir J:\AosService\PackagesLocalDirectory -sqluser axdbadmin -sqlserver localhost -sqldatabase AxDB -setupmode sync -syncmode fullall -sqlpwd $pwd
     }
 }
-
 function D365MaintainanceMode()
 {
     Write-Host "1. Enablle Maintainance model"
@@ -236,11 +260,10 @@ function D365MaintainanceMode()
             Write-Host "Re-Set to Normal mode $env:COMPUTERNAME"
             iisreset
         }
-            
-    
+           
+   
     }
 }
-
 function CARReport($ModelName)
 {
     if(Test-Path "J:\AosService")
@@ -248,13 +271,13 @@ function CARReport($ModelName)
         $date = Get-Date -Format MMddyyyy
         $pcK_LocalDir = "J:\AosService\PackagesLocalDirectory\bin"
         Set-Location -Path $pcK_LocalDir
-        #$ModelName = "IDECPOModel" 
-        $XL_FileName = $ModelName+$date 
+        #$ModelName = "IDECPOModel"
+        $XL_FileName = $ModelName+$date
         $cmd = ".\xppbp.exe -metadata=J:\AosService\PackagesLocalDirectory -all -model=""$ModelName"" -xmlLog=C:\cg\BPCheckLogcd.xml -car=C:\CG\CAR_$XL_FileName.xlsx -Module=""$ModelName"" -packagesroot=J:\AosService\PackagesLocalDirectory"
         Write-Host $cmd
         Invoke-Expression $cmd
     }
-    
+   
     if(Test-Path "K:\AosService")
     {
         $pcK_LocalDir = "K:\AosService\PackagesLocalDirectory\bin"
@@ -263,12 +286,11 @@ function CARReport($ModelName)
         Invoke-Expression $cmd
     }
 }
-
 function AddUsersToCHE()
 {
     Write-Host "Response [Yes] & A [Yes to All]"
     Import-Module -Name d365fo.tools
-    $corpID = Read-Host "Enter the CorpID [e,g., senthRaj] without domain" 
+    $corpID = Read-Host "Enter the CorpID [e,g., senthRaj] without domain"
     if($corpID.Contains("corp.idemia.com"))
     {
         Write-Host "Please give the corpid only"
@@ -278,8 +300,11 @@ function AddUsersToCHE()
         $UserdID = "$corpID@corp.idemia.com"
         import-d365aadUser -users $UserdID
     }
-
-
-
 }
-main 
+
+function self-signCertificate()
+{
+  $hostname = [System.Net.Dns]::GetHostName()
+  New-SelfSignedCertificate -FriendlyName "$hostname-D365"  -CertStoreLocation Cert:\LocalMachine\My -DnsName "$hostname-CHECert" -KeyExportPolicy Exportable -HashAlgorithm sha256 -KeyLength 2048 -KeySpec Signature -Provider "Microsoft Enhanced RSA and AES Cryptographic Provider" -NotBefore (Get-Date -Year 2020 -Month 5 -Day 1) -NotAfter (Get-Date -Year 2033 -Month 12 -Day 31)   
+}
+main
